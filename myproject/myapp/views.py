@@ -1,16 +1,38 @@
 # views.py
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db.models import Count
-from .models import User, Contact, SpamReport
-from .serializers import UserSerializer, ContactSerializer, SpamReportSerializer
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .models import User, Contact
+from rest_framework.authtoken.models import Token
+from .serializers import UserSerializer, ContactSerializer, SpamReportSerializer, LoginSerializer
 
 class RegisterUserView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+   queryset = User.objects.all()
+   serializer_class = UserSerializer
+   permission_classes = [AllowAny] 
+
+
+class LoginView(APIView):
+    permission_classes = [AllowAny] 
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({"token": token.key}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LogoutView(APIView):
+    permission_classes = [AllowAny] 
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        request.user.auth_token.delete()  # Deletes the token for the authenticated user
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class SpamReportView(generics.CreateAPIView):
+    permission_classes = [AllowAny] 
     serializer_class = SpamReportSerializer
     permission_classes = [IsAuthenticated]
 
@@ -18,6 +40,7 @@ class SpamReportView(generics.CreateAPIView):
         serializer.save(reporter=self.request.user)
 
 class ContactSearchView(generics.ListAPIView):
+    permission_classes = [AllowAny] 
     serializer_class = ContactSerializer
     permission_classes = [IsAuthenticated]
 
